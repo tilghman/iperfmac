@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.machelpnashville.iperf3</string>
+	<key>Program</key>
+	<string>/usr/local/bin/iperf3</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>iperf3</string>
+		<string>-s</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>ServiceDescription</key>
+	<string>iperf3: bandwidth testing</string>
+</dict>
+</plist>
