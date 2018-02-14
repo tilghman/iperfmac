@@ -6,7 +6,7 @@ bin="iperf3"
 plist="com.machelpnashville.iperf3.plist"
 bindir=/usr/local/bin
 plistdir=/Library/LaunchDaemons
-logfile=/tmp/iperf.log
+#logfile=/tmp/iperf.log
 
 function log {
 	if [ "$logfile" != "" ]; then
@@ -14,30 +14,49 @@ function log {
 	fi
 }
 
-pw="$(osascript -e 'Tell application "System Events" to display dialog "We need to install a file in a privileged directory. Please enter your password:" default answer "" with hidden answer' -e 'text returned of result' 2>/dev/null)"
+function notification {
+	osascript -e "tell application \"System Events\" to display dialog \"$1\" buttons {\"OK\"} default button 1"
+}
+
+pw="$(osascript -e 'Tell application "System Events" to display dialog "We need to install files in privileged directories. Please enter your password:" default answer "" with hidden answer' -e 'text returned of result' 2>/dev/null)"
+
+# No password is interpreted to mean the user cancelled.
+if [ "$pw" = "" ]; then
+	notification "Cancelled by user request"
+	exit 1
+fi
+
+# Check for a valid password
+echo "$pw" | sudo -S touch $plistdir/.permcheck
+if [ ! -f $plistdir/.permcheck ]; then
+	notification "Invalid password"
+	exit 1
+fi
+echo "$pw" | sudo -S rm -f $plistdir/.permcheck
 
 if [ -f $bindir/$bin ]; then
-	confirm="$(osascript -e 'set question to display dialog "iperf3 is already installed on this machine. Do you want to uninstall?" buttons {"Reinstall", "Uninstall", "Quit"} default button 3' -e 'button returned of question' 2>/dev/null)"
+	confirm="$(osascript -e 'set question to display dialog "Iperf is already installed on this machine. Do you want to uninstall?" buttons {"Reinstall", "Uninstall", "Quit"} default button 3' -e 'button returned of question' 2>/dev/null)"
 	log "Confirm is $confirm"
 	if [ "$confirm" = "Quit" ]; then
 		log "Quit"
 		exit 0
 	else if [ "$confirm" = "Uninstall" ]; then
-		echo $pw | sudo -S launchctl unload -w $plistdir/$plist
-		echo $pw | sudo -S rm -f $bindir/$bin
-		echo $pw | sudo -S rm -f $plistdir/$plist
+		echo "$pw" | sudo -S launchctl unload -w $plistdir/$plist
+		echo "$pw" | sudo -S rm -f $bindir/$bin
+		echo "$pw" | sudo -S rm -f $plistdir/$plist
 		log "Uninstall complete"
+		notification "Uninstall complete"
 		exit 0
 	fi ; fi
 	# Else fall through to install/reinstall
 fi
 
 if [ ! -d $bindir ]; then
-	echo $pw | sudo -S /usr/bin/install -o root -g wheel -m 755 -d $bindir
+	echo "$pw" | sudo -S /usr/bin/install -o root -g wheel -m 755 -d $bindir
 fi
 
 if [ ! -d $plistdir ]; then
-	echo $pw | sudo -S /usr/bin/install -o root -g wheel -m 755 -d $plistdir
+	echo "$pw" | sudo -S /usr/bin/install -o root -g wheel -m 755 -d $plistdir
 fi
 
 log "Current working directory is `pwd`"
@@ -46,15 +65,20 @@ log "Copying files from $src"
 log `ls -l $src`
 
 # Put binary in place
-echo $pw | sudo -S /usr/bin/install -o root -g wheel -m 755 "$src/$bin" $bindir/$bin
+echo "$pw" | sudo -S /usr/bin/install -o root -g wheel -m 755 "$src/$bin" $bindir/$bin
 
 # Put launch script in place
-echo $pw | sudo -S install -o root -g wheel -m 644 "$src/$plist" $plistdir/$plist
+echo "$pw" | sudo -S install -o root -g wheel -m 644 "$src/$plist" $plistdir/$plist
 
 # Activate launch script
-echo $pw | sudo -S launchctl load -w $plistdir/$plist
+echo "$pw" | sudo -S launchctl load -w $plistdir/$plist
 
 log "Install complete"
+if [ -f $bindir/$bin -a -f $plistdir/$plist ]; then
+	notification "Install complete"
+else
+	notification "Install aborted"
+fi
 
 exit 0
 
